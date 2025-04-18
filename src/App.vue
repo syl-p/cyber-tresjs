@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Grid } from '@tresjs/cientos'
+import { Grid, Plane } from '@tresjs/cientos'
 import Player from '@/components/Player.vue'
 import Enemy2Legs from '@/components/enemies/Enemy2Legs.vue'
+import Obstacles from '@/components/Obstacles.vue'
 
-import { ContactShadows } from '@tresjs/cientos'
+import { ContactShadows, Html } from '@tresjs/cientos'
 
 import { useControls, TresLeches } from '@tresjs/leches'
 import '@tresjs/leches/styles'
@@ -11,6 +12,7 @@ import { useGameStore } from './stores/game'
 import { useRenderLoop } from '@tresjs/core'
 import { storeToRefs } from 'pinia'
 import * as YUKA from 'yuka'
+import * as THREE from 'three'
 
 const gameStore = useGameStore()
 const { entityManager } = storeToRefs(gameStore)
@@ -19,6 +21,20 @@ useControls('fpsgraph')
 
 const { onLoop } = useRenderLoop()
 const time = new YUKA.Time()
+
+const generateRandomOPositions = () => {
+  // x and z
+  const x = Math.random() * 20 - 20 / 2
+  const z = Math.random() * 20 - 20 / 2
+
+  return new THREE.Vector3(x, 0, z)
+}
+
+const patrolPoints = Array.from({ length: 5 }, () => {
+  return generateRandomOPositions()
+})
+
+console.log(patrolPoints)
 
 onLoop(({ delta }) => {
   const deltaFromYuka = time.update().getDelta()
@@ -31,12 +47,18 @@ onLoop(({ delta }) => {
 <template>
   <TresCanvas window-size :clear-color="0x01010a">
     <TresPerspectiveCamera />
-    <!-- <OrbitControls /> -->
+    <TresGroup v-for="(point, index) in patrolPoints" :key="index">
+      <Plane :args="[1, 1]" :position="point" color="teal" />
+      <Html :position="point" center>
+        <div class="text-white font-bold">Potrol point {{ index }}</div>
+      </Html>
+    </TresGroup>
+    <Obstacles />
     <Suspense>
       <Player />
     </Suspense>
     <Suspense>
-      <Enemy2Legs />
+      <Enemy2Legs :patrol-points="patrolPoints" />
     </Suspense>
     <Grid
       :args="[10.5, 10.5]"
@@ -53,36 +75,9 @@ onLoop(({ delta }) => {
     />
     <ContactShadows :position-y="-0.01" />
     <TresAmbientLight :intensity="1" />
-    <DirectionalLight :position="[0, 20, 0]" :intensity="1" :cast-shadow="true" />
+    <TresDirectionalLight :position="[0, 20, 0]" :intensity="1" :cast-shadow="true" />
   </TresCanvas>
   <TresLeches />
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-</style>
+<style scoped></style>
