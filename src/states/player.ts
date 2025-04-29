@@ -1,192 +1,227 @@
-import { useAnimations } from '@tresjs/cientos'
-import type { AnimationAction, AnimationClip, Scene } from 'three'
-import type State from '@/types/State.ts'
+import MessageType from '@/types/MessageType'
+import type { AnimationAction } from 'three'
 import * as YUKA from 'yuka'
-import { GameEntity } from 'yuka'
+import * as THREE from 'three'
 
 const IDLE_ANIMATION = 'Idle_Sword'
 const RUN_ANIMATION = 'Run'
 const WALK_ANIMATION = 'Walk'
+const HIT_ANIMATION = 'HitRecieve'
 const WALK_BACK_ANIMATION = 'Run_Back'
 const CROSS_FADE_DURATION = 0.2
 
-class PlayerObject {
+class PlayerObject extends YUKA.MovingEntity {
+  object: THREE.Object3D
   actions: { [p: string]: AnimationAction }
+  stateMachine: YUKA.StateMachine<PlayerObject> = new YUKA.StateMachine(this)
 
-  constructor(animations: AnimationClip[], scene: Scene) {
-    const { actions } = useAnimations(animations, scene)
+  constructor(actions: { [p: string]: AnimationAction }, object: THREE.Object3D) {
+    super()
     this.actions = actions
     this.name = 'player'
+    this.object = object
+
+    this.setRenderComponent(object, (entity, renderComponent) => {
+      //@ts-expect-error
+      renderComponent.matrix.copy(entity.worldMatrix)
+    })
+
+    this.stateMachine.add('Idle', new IdleState())
+    this.stateMachine.add('Walk', new WalkState())
+    this.stateMachine.add('Run', new RunState())
+    this.stateMachine.add('Walk Back', new WalkBackState())
+    this.stateMachine.add('Hit', new HitState())
+    this.stateMachine.changeTo('Idle')
+  }
+
+  handleMessage(telegram: YUKA.Telegram): boolean {
+    const message = telegram.message
+
+    switch (message) {
+      case MessageType.ATTACK:
+        this.stateMachine.changeTo('Hit')
+        // console.log('PlayerObject: ATTACK message received.')
+        return true
+
+      default:
+        console.warn('Collectible: Unknown message.')
+    }
+
+    return false
+  }
+
+  update(delta: number): this {
+    super.update(delta)
+    if (this.object && this.object.position) this.position.copy(this.object.position)
+    return this
   }
 }
 
-class IdleState implements State {
-  player: PlayerObject
-
-  constructor(player: PlayerObject) {
-    this.player = player
-  }
-
+class IdleState extends YUKA.State<PlayerObject> {
   get name() {
     return IDLE_ANIMATION
   }
 
-  enter(previousState: State | null) {
-    const currAction = this.player.actions[IDLE_ANIMATION]
+  enter(owner: PlayerObject | null) {
+    const currAction = owner.actions[IDLE_ANIMATION]
     currAction.enabled = true
-    // idle?.reset().fadeIn(CROSS_FADE_DURATION).play()
-    if (previousState) {
-      const previousAction = this.player.actions[previousState.name]
-      // console.log(previousState.name + ' to ' + IDLE_ANIMATION)
+    currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
 
-      currAction.time = 0.0
-      currAction.setEffectiveTimeScale(1.0)
-      currAction.setEffectiveWeight(1.0)
-      currAction.crossFadeFrom(previousAction, CROSS_FADE_DURATION, true)
-      currAction.play()
-    } else {
-      currAction.play()
-    }
+    // if (previousState) {
+    //   const previousAction = owner.actions[previousState.name]
+    //   // console.log(previousState.name + ' to ' + IDLE_ANIMATION)
+
+    //   currAction.time = 0.0
+    //   currAction.setEffectiveTimeScale(1.0)
+    //   currAction.setEffectiveWeight(1.0)
+    //   currAction.crossFadeFrom(previousAction, CROSS_FADE_DURATION, true)
+    //   currAction.play()
+    // } else {
+    //   currAction.play()
+    // }
   }
 
-  execute() {}
+  execute(owner: PlayerObject) {}
 
-  exit() {
-    // const idle = this.player.actions[IDLE_ANIMATION]
-    // idle?.fadeOut(CROSS_FADE_DURATION).play()
+  exit(owner: PlayerObject) {
+    const idle = owner.actions[IDLE_ANIMATION]
+    idle?.fadeOut(CROSS_FADE_DURATION).play()
   }
 }
 
-class WalkState implements State {
-  player: PlayerObject
-
-  constructor(player: PlayerObject) {
-    this.player = player
-  }
-
+class WalkState extends YUKA.State<PlayerObject> {
   get name() {
     return WALK_ANIMATION
   }
 
-  enter(previousState: State) {
-    const currAction = this.player.actions[WALK_ANIMATION]
+  enter(owner: PlayerObject) {
+    const currAction = owner.actions[WALK_ANIMATION]
     currAction.enabled = true
-    //currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
-    if (previousState) {
-      const prevAction = this.player.actions[previousState.name]
-      // console.log(previousState.name + ' to ' + WALK_ANIMATION)
+    currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
 
-      if (previousState.name === RUN_ANIMATION) {
-        const ratio = currAction.getClip().duration / prevAction.getClip().duration
-        currAction.time = prevAction.time * ratio + 1
-      } else {
-        currAction.time = 0.0
-        currAction.setEffectiveTimeScale(1.0)
-        currAction.setEffectiveWeight(1.0)
-      }
+    // if (previousState) {
+    //   const prevAction = owner.actions[previousState.name]
+    //   // console.log(previousState.name + ' to ' + WALK_ANIMATION)
 
-      currAction.crossFadeFrom(prevAction, CROSS_FADE_DURATION, true)
-      currAction.play()
-    } else {
-      currAction.play()
-    }
+    //   if (previousState.name === RUN_ANIMATION) {
+    //     const ratio = currAction.getClip().duration / prevAction.getClip().duration
+    //     currAction.time = prevAction.time * ratio + 1
+    //   } else {
+    //     currAction.time = 0.0
+    //     currAction.setEffectiveTimeScale(1.0)
+    //     currAction.setEffectiveWeight(1.0)
+    //   }
+
+    //   currAction.crossFadeFrom(prevAction, CROSS_FADE_DURATION, true)
+    //   currAction.play()
+    // } else {
+    //   currAction.play()
+    // }
   }
 
   execute() {}
 
-  exit() {
-    // const walk = this.player.actions[WALK_ANIMATION]
-    // walk?.fadeOut(CROSS_FADE_DURATION).play()
+  exit(owner: PlayerObject) {
+    const walk = owner.actions[WALK_ANIMATION]
+    walk?.fadeOut(CROSS_FADE_DURATION).play()
   }
 }
 
-class WalkBackState implements State {
-  player: PlayerObject
-
-  constructor(player: PlayerObject) {
-    this.player = player
-  }
-
+class WalkBackState extends YUKA.State<PlayerObject> {
   get name() {
     return WALK_BACK_ANIMATION
   }
 
-  enter(previousState: State) {
-    const currAction = this.player.actions[WALK_BACK_ANIMATION]
+  enter(owner: PlayerObject) {
+    const currAction = owner.actions[WALK_BACK_ANIMATION]
     currAction.enabled = true
+    currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
+    // if (previousState) {
+    //   const prevAction = owner.actions[previousState.name]
+    //   // console.log(previousState.name + ' to ' + WALK_BACK_ANIMATION)
 
-    // walkBack?.reset().fadeIn(CROSS_FADE_DURATION).play()
-    if (previousState) {
-      const prevAction = this.player.actions[previousState.name]
-      // console.log(previousState.name + ' to ' + WALK_BACK_ANIMATION)
+    //   if (previousState.name === RUN_ANIMATION) {
+    //     const ratio = currAction.getClip().duration / prevAction.getClip().duration
+    //     currAction.time = prevAction.time * ratio + 1
+    //   } else {
+    //     currAction.time = 0.0
+    //     currAction.setEffectiveTimeScale(1.0)
+    //     currAction.setEffectiveWeight(1.0)
+    //   }
 
-      if (previousState.name === RUN_ANIMATION) {
-        const ratio = currAction.getClip().duration / prevAction.getClip().duration
-        currAction.time = prevAction.time * ratio + 1
-      } else {
-        currAction.time = 0.0
-        currAction.setEffectiveTimeScale(1.0)
-        currAction.setEffectiveWeight(1.0)
-      }
-
-      currAction.crossFadeFrom(prevAction, CROSS_FADE_DURATION, true)
-      currAction.play()
-    } else {
-      currAction.play()
-    }
+    //   currAction.crossFadeFrom(prevAction, CROSS_FADE_DURATION, true)
+    //   currAction.play()
+    // } else {
+    //   currAction.play()
+    // }
   }
 
   execute() {}
 
-  exit() {
-    // const walkBack = this.player.actions[WALK_BACK_ANIMATION]
-    // walkBack?.fadeOut(CROSS_FADE_DURATION).play()
+  exit(owner: PlayerObject) {
+    const walkBack = owner.actions[WALK_BACK_ANIMATION]
+    walkBack?.fadeOut(CROSS_FADE_DURATION).play()
   }
 }
 
-class RunState implements State {
-  player: PlayerObject
-
-  constructor(player: PlayerObject) {
-    this.player = player
-  }
-
+class RunState extends YUKA.State<PlayerObject> {
   get name() {
     return RUN_ANIMATION
   }
 
-  enter(previousState: State) {
-    const currAction = this.player.actions[RUN_ANIMATION]
-    // currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
+  enter(owner: PlayerObject) {
+    const currAction = owner.actions[RUN_ANIMATION]
+    currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
     currAction.enabled = true
-    if (previousState) {
-      const prevAction = this.player.actions[previousState.name]
-      // console.log(previousState.name + ' to ' + RUN_ANIMATION)
+    // if (previousState) {
+    //   const prevAction = owner.actions[previousState.name]
+    //   // console.log(previousState.name + ' to ' + RUN_ANIMATION)
 
-      if (previousState.name === WALK_ANIMATION) {
-        const ratio = currAction.getClip().duration / prevAction.getClip().duration
-        currAction.time = prevAction.time * ratio + 3
+    //   if (previousState.name === WALK_ANIMATION) {
+    //     const ratio = currAction.getClip().duration / prevAction.getClip().duration
+    //     currAction.time = prevAction.time * ratio + 3
 
-        // console.log('currAction.time : ' + currAction.time)
-      } else {
-        currAction.time = 0.0
-        currAction.setEffectiveTimeScale(1.0)
-        currAction.setEffectiveWeight(1.0)
-      }
+    //     // console.log('currAction.time : ' + currAction.time)
+    //   } else {
+    //     currAction.time = 0.0
+    //     currAction.setEffectiveTimeScale(1.0)
+    //     currAction.setEffectiveWeight(1.0)
+    //   }
 
-      currAction.crossFadeFrom(prevAction, CROSS_FADE_DURATION, true)
-      currAction.play()
-    } else {
-      currAction.play()
-    }
+    //   currAction.crossFadeFrom(prevAction, CROSS_FADE_DURATION, true)
+    //   currAction.play()
+    // } else {
+    //   currAction.play()
+    // }
   }
 
   execute() {}
 
-  exit() {
-    // const run = this.player.actions[RUN_ANIMATION]
-    // run?.fadeOut(CROSS_FADE_DURATION).play()
+  exit(owner: PlayerObject) {
+    const run = owner.actions[RUN_ANIMATION]
+    run?.fadeOut(CROSS_FADE_DURATION).play()
   }
 }
 
-export { PlayerObject, IdleState, WalkState, WalkBackState, RunState }
+class HitState extends YUKA.State<PlayerObject> {
+  private onFinished: (() => void) | null = null
+
+  enter(owner: PlayerObject) {
+    const currAction = owner.actions[HIT_ANIMATION]
+    currAction
+      .reset()
+      .setLoop(THREE.LoopRepeat, 1)
+      .fadeIn(CROSS_FADE_DURATION * 0.8)
+      .play()
+
+    this.onFinished = () => {
+      owner.stateMachine.changeTo('Idle')
+    }
+
+    currAction.getMixer().addEventListener('finished', this.onFinished)
+  }
+  execute() {}
+  exit() {}
+}
+
+export { PlayerObject, IdleState, WalkState, WalkBackState, RunState, HitState }

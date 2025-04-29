@@ -1,34 +1,38 @@
+import { config } from '@/gameConfig'
 import { useRenderLoop, useTresContext } from '@tresjs/core'
 import { useControls } from '@tresjs/leches'
 import { Scene, Vector3 } from 'three'
+import { computed } from 'vue'
 
-export default (
-  model: Scene,
-  defaultOffset: Vector3,
-  defaultLookAt: Vector3,
-  defaultApplyQuaternion: boolean = true,
-) => {
+export default (model: Scene) => {
   const { camera } = useTresContext()
-  const { offset, lookAt, applyQuaternion } = useControls({
-    offset: { value: defaultOffset, isVector3: true },
-    lookAt: { value: defaultLookAt, isVector3: true },
-    applyQuaternion: defaultApplyQuaternion,
+  const { value } = useControls({
+    gameplay: {
+      value: 'topDown',
+      options: ['topDown', 'tps'],
+    },
+  })
+
+  const gamePlayConfiguration = computed(() => {
+    return config[value.value]
   })
 
   const currentPosition = new Vector3()
   const currentLookAt = new Vector3()
 
   function calculateOffset() {
-    const idealOffset = offset.value.value.clone()
-    if (applyQuaternion.value.value) idealOffset.applyQuaternion(model.quaternion)
+    const idealOffset = gamePlayConfiguration.value.camera.offset.clone()
+    if (gamePlayConfiguration.value.camera.applyQuaternion)
+      idealOffset.applyQuaternion(model.quaternion)
 
     idealOffset.add(model.position)
     return idealOffset
   }
 
   function calculateLookAt() {
-    const idealLookAt = lookAt.value.value.clone()
-    if (applyQuaternion.value.value) idealLookAt.applyQuaternion(model.quaternion)
+    const idealLookAt = gamePlayConfiguration.value.camera.lookAt.clone()
+    if (gamePlayConfiguration.value.camera.applyQuaternion)
+      idealLookAt.applyQuaternion(model.quaternion)
 
     idealLookAt.add(model.position)
     return idealLookAt

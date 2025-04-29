@@ -100,15 +100,25 @@ class CoolDownState extends YUKA.State<Enemy2Legs> {
 }
 
 class AttackState extends YUKA.State<Enemy2Legs> {
+  private onFinished: (() => void) | null = null
+
   enter(enemy: Enemy2Legs) {
     enemy.velocity.set(0, 0, 0)
     enemy.maxSpeed = 0
     const currAction = enemy.actions[ATTACK_ANIMATION]
-    currAction?.reset().fadeIn(CROSS_FADE_DURATION).play()
+
+    enemy.attackPlayer()
+    currAction.reset().setLoop(THREE.LoopRepeat, 1).fadeIn(CROSS_FADE_DURATION).play()
+
+    this.onFinished = () => {
+      enemy.stateMachine.changeTo('ATTACK')
+    }
+
+    currAction.getMixer().addEventListener('finished', this.onFinished)
   }
+
   execute(enemy: Enemy2Legs) {
     if (enemy.attack === undefined) {
-      // enemy.startWantedTarget()
       enemy.stateMachine.changeTo('COOL_DOWN')
     } else {
       const distance = enemy.attack.position.distanceTo(
@@ -119,6 +129,7 @@ class AttackState extends YUKA.State<Enemy2Legs> {
       }
     }
   }
+
   exit(enemy: Enemy2Legs) {
     const idle = enemy.actions[ATTACK_ANIMATION]
     idle?.fadeOut(CROSS_FADE_DURATION).play()

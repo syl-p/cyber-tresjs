@@ -1,15 +1,17 @@
+import * as THREE from 'three'
+
 const config = {
   topDown: {
     camera: {
-      position: { x: -7, y: 8.5, z: -6 },
-      lookAt: { x: 0, y: 0, z: 0 },
+      offset: new THREE.Vector3(-7, 8.5, -6),
+      lookAt: new THREE.Vector3(0, 0, 0),
       applyQuaternion: false,
     },
   },
   tps: {
     camera: {
-      position: { x: -1.5, y: 1.5, z: -4.5 },
-      lookAt: { x: 0, y: 1, z: 10.5 },
+      offset: new THREE.Vector3(-1.5, 1.5, -4.5),
+      lookAt: new THREE.Vector3(0, 1, 10.5),
       applyQuaternion: true,
     },
   },

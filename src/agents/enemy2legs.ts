@@ -7,6 +7,7 @@ import {
   IdleState,
   AttackState,
 } from '@/states/enemies/enemy2Legs'
+import MessageType from '@/types/MessageType'
 
 export default class Enemy2Legs extends YUKA.Vehicle {
   actions: { [p: string]: THREE.AnimationAction }
@@ -29,7 +30,6 @@ export default class Enemy2Legs extends YUKA.Vehicle {
     patrolPoints: { x: number; y: number; z: number }[],
   ) {
     super()
-    this.smoother = new YUKA.Smoother(3)
     this.actions = actions
     this.entityManager = entityManager
     object.matrixAutoUpdate = false
@@ -37,7 +37,8 @@ export default class Enemy2Legs extends YUKA.Vehicle {
     const boundingBox = new THREE.Box3().setFromObject(object)
     const size = new THREE.Vector3()
     boundingBox.getSize(size)
-    this.boundingRadius = size.length() / 2
+    this.boundingRadius = size.x / 2
+    this.smoother = new YUKA.Smoother(13)
 
     this.setRenderComponent(object, (entity, renderComponent) => {
       //@ts-expect-error
@@ -56,6 +57,16 @@ export default class Enemy2Legs extends YUKA.Vehicle {
     this.stateMachine.changeTo('PATROL')
   }
 
+  public attackPlayer() {
+    if (!this.attack) return
+    this.entityManager?.sendMessage(this, this.attack, MessageType.ATTACK, 0, {})
+  }
+
+  handleMessage(): boolean {
+    console.log('hello')
+    return true
+  }
+
   private initPath(patrolPoints: { x: number; y: number; z: number }[]) {
     this.smoother = new YUKA.Smoother(15)
     patrolPoints.forEach((p) => {
@@ -64,7 +75,7 @@ export default class Enemy2Legs extends YUKA.Vehicle {
     this.path.loop = true
 
     this.position.copy(this.path.current())
-
+    this.steeringBehaviors.followPath.weight = 1
     this.steeringBehaviors.followPath.path = this.path
     this.steering.add(this.steeringBehaviors.followPath)
     this.steeringBehaviors.onPathBehavior.path = this.path
@@ -79,13 +90,14 @@ export default class Enemy2Legs extends YUKA.Vehicle {
 
   private initObstacleAvoidanceBehavior() {
     this.steeringBehaviors.obstacleAvoidanceBehavior.active = true
-    this.steeringBehaviors.obstacleAvoidanceBehavior.brakingWeight = 0.4
-    this.steeringBehaviors.obstacleAvoidanceBehavior.weight = 10
+    this.steeringBehaviors.obstacleAvoidanceBehavior.weight = 15
+    this.steeringBehaviors.obstacleAvoidanceBehavior.brakingWeight = 0.1
+
     if (this.entityManager) {
       const obstacles = this.entityManager.entities.filter((e) => e.name === 'obstacle')
-      console.log('obstacles', obstacles.length)
       this.steeringBehaviors.obstacleAvoidanceBehavior.obstacles = obstacles
     }
+
     this.steering.add(this.steeringBehaviors.obstacleAvoidanceBehavior)
   }
 
@@ -98,20 +110,7 @@ export default class Enemy2Legs extends YUKA.Vehicle {
         new YUKA.Vector3(this.position.x, this.position.y, this.position.z),
       )
 
-      this.setTargetLastVision(distance < 10 ? player : undefined)
-    }
-  }
-
-  public setTargetLastVision(target: YUKA.GameEntity | undefined) {
-    if (target && this.attack === undefined) {
-      console.log('Target !!!')
-      if (this.attack == undefined) this.attack = target
-    } else {
-      console.log('Hmmm, I lost my target search arround')
-      this.lastAttackVision = setTimeout(() => {
-        console.log('Sh**, go back to my patrol job ?')
-        this.attack = target
-      }, 2000)
+      this.attack = distance < 10 ? player : undefined
     }
   }
 
