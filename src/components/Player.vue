@@ -7,7 +7,7 @@ import { storeToRefs } from 'pinia'
 import { ref, watchEffect } from 'vue'
 import usePlayerControlMouse from '@/composables/usePlayerControlMouse'
 import * as YUKA from 'yuka'
-const { scene, animations } = await useGLTF('/models/Character.gltf', { draco: true })
+const { scene, animations } = await useGLTF('models/Character.gltf', { draco: true })
 const { actions } = useAnimations(animations, scene)
 const gameStore = useGameStore()
 const { entityManager } = storeToRefs(gameStore)

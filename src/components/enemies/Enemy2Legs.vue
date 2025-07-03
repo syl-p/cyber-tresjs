@@ -5,7 +5,7 @@ import { useGameStore } from '@/stores/game.ts'
 import { storeToRefs } from 'pinia'
 import Enemy2Legs from '@/agents/enemy2legs'
 import { useControls } from '@tresjs/leches'
-const { scene, animations } = await useGLTF('/models/enemies/Enemy_2Legs.gltf', { draco: true })
+const { scene, animations } = await useGLTF('models/enemies/Enemy_2Legs.gltf', { draco: true })
 const gameStore = useGameStore()
 const { entityManager } = storeToRefs(gameStore)
 const object = ref()
